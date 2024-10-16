@@ -1,0 +1,63 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_CREDENTIALS = credentials('Ndshree27') 
+        DEV_REPO = 'divyashree27/dev'
+        PROD_REPO = 'divyashree27/prod'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                script {
+                    // Build Docker image
+                    def imageTag = "latest" 
+                    sh "docker build -t ${DEV_REPO}:${imageTag} ."
+                }
+            }
+        }
+        
+        stage('Push to Dev') {
+            when {
+                branch 'dev' 
+            }
+            steps {
+                script {
+                    
+                    sh "echo '${DOCKER_CREDENTIALS.password}' | docker login -u '${DOCKER_CREDENTIALS.username}' --password-stdin"
+                    sh "docker push ${DEV_REPO}:latest"
+                }
+            }
+        }
+        
+        stage('Push to Prod') {
+            when {
+                branch 'main' 
+            }
+            steps {
+                script {
+                    
+                    sh "docker tag ${DEV_REPO}:latest ${PROD_REPO}:latest"
+                    sh "docker push ${PROD_REPO}:latest"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Build and deployment successful!'
+        }
+        failure {
+            echo 'Build or deployment failed.'
+        }
+    }
+}
+
